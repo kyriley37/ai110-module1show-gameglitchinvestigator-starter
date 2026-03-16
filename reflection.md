@@ -8,6 +8,14 @@ Answer each question in 3 to 5 sentences. Be specific and honest about what actu
 - List at least two concrete bugs you noticed at the start  
   (for example: "the secret number kept changing" or "the hints were backwards").
 
+  Bug 1: Hint messages are backwards
+When you guess a number that is too low, the hint tells you to go lower. When you guess a number that is too high, the hint tells you to go higher. The "Go Higher" and "Go Lower" messages are swapped, so the hint always points you in the wrong direction.
+
+Bug 2: New Game button doesn't work after winning
+When you win the game and click "New Game," the game does not actually restart. The screen stays frozen on the win state. The button only works correctly if you click it before winning. I think this might be because winning sets a "won" status that never gets cleared when the new game starts.
+
+Bug 3: I noticed the attempts counter was always one number ahead of the actual number of guesses made. For example, after making 6 guesses the counter showed 7, and "Attempts left" showed one less than it should. I traced this to the session state initialization — attempts was set to 1 at the start of the game instead of 0, so the game was already counting a fake first attempt before the player did anything. Fixing the starting value to 0 made the counter match the actual number of guesses in the history.
+
 ---
 
 ## 2. How did you use AI as a teammate?

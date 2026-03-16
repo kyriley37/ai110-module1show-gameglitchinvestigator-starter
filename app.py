@@ -1,5 +1,6 @@
 import random
 import streamlit as st
+from logic_utils import check_guess
 
 def get_range_for_difficulty(difficulty: str):
     if difficulty == "Easy":
@@ -28,23 +29,6 @@ def parse_guess(raw: str):
 
     return True, value, None
 
-
-def check_guess(guess, secret):
-    if guess == secret:
-        return "Win", "🎉 Correct!"
-
-    try:
-        if guess > secret:
-            return "Too High", "📈 Go HIGHER!"
-        else:
-            return "Too Low", "📉 Go LOWER!"
-    except TypeError:
-        g = str(guess)
-        if g == secret:
-            return "Win", "🎉 Correct!"
-        if g > secret:
-            return "Too High", "📈 Go HIGHER!"
-        return "Too Low", "📉 Go LOWER!"
 
 
 def update_score(current_score: int, outcome: str, attempt_number: int):
@@ -93,7 +77,7 @@ if "secret" not in st.session_state:
     st.session_state.secret = random.randint(low, high)
 
 if "attempts" not in st.session_state:
-    st.session_state.attempts = 1
+    st.session_state.attempts = 0
 
 if "score" not in st.session_state:
     st.session_state.score = 0
@@ -103,6 +87,9 @@ if "status" not in st.session_state:
 
 if "history" not in st.session_state:
     st.session_state.history = []
+
+if "game_count" not in st.session_state:
+    st.session_state.game_count = 0
 
 st.subheader("Make a guess")
 
@@ -120,7 +107,7 @@ with st.expander("Developer Debug Info"):
 
 raw_guess = st.text_input(
     "Enter your guess:",
-    key=f"guess_input_{difficulty}"
+    key=f"guess_input_{difficulty}_{st.session_state.game_count}"
 )
 
 col1, col2, col3 = st.columns(3)
@@ -132,8 +119,14 @@ with col3:
     show_hint = st.checkbox("Show hint", value=True)
 
 if new_game:
+    # FIXME: Logic breaks here — status was never reset, so after winning the
+    # game stayed stuck on "won" and st.stop() blocked all gameplay on rerun.
+    # FIX: Reset status back to "playing" so the game is fully restarted.
     st.session_state.attempts = 0
-    st.session_state.secret = random.randint(1, 100)
+    st.session_state.secret = random.randint(low, high)
+    st.session_state.status = "playing"
+    st.session_state.history = []
+    st.session_state.game_count += 1
     st.success("New game started.")
     st.rerun()
 
@@ -154,15 +147,19 @@ if submit:
         st.error(err)
     else:
         st.session_state.history.append(guess_int)
+        # FIXME: Logic breaks here — even attempts converted the secret to a string,
+        # causing alphabetical comparison instead of numerical. This locked the hint
+        # to one direction for the whole game regardless of what was guessed.
+        # FIX: Removed string conversion. Moved check_guess to logic_utils.py so it
+        # always compares integers. Corrected hint messages (they were also swapped).
+        outcome = check_guess(guess_int, st.session_state.secret)
+        hint_messages = {
+            "Too High": "📉 Go LOWER!",
+            "Too Low": "📈 Go HIGHER!",
+        }
+        message = hint_messages.get(outcome, "")
 
-        if st.session_state.attempts % 2 == 0:
-            secret = str(st.session_state.secret)
-        else:
-            secret = st.session_state.secret
-
-        outcome, message = check_guess(guess_int, secret)
-
-        if show_hint:
+        if show_hint and message:
             st.warning(message)
 
         st.session_state.score = update_score(
